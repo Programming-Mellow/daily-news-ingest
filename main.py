@@ -63,7 +63,7 @@ Prioritize articles that are relevant to:
 - Agentic AI, AI agents, and what AI practitioners and architects need to know right now
 - Cloud infrastructure: architecture, networking, storage, compute, cost optimization
 - AI/ML in general — models, platforms, tools, trends shaping the industry
-- DevOps fundamentals and practices worth knowing for someone building cloud exposure
+- DevOps fundamentals and practices worth knowing for someone building cloud exposure. Max articles should be 5, but the limits won't apply to other concepts.
 - Broader IT industry news that would interest an IT professional early in their career
 
 I enjoy a mix of technical deep-dives and higher-level industry trend pieces. Skip articles that are
