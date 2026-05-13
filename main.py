@@ -49,7 +49,7 @@ FEEDS: dict[str, list[str]] = {
 }
 
 MAX_DESC_CHARS = 600
-MAX_ARTICLES_PER_CATEGORY = 15
+MAX_ARTICLES_PER_CATEGORY = 5
 NOTION_RT_LIMIT = 1990  # Notion rich_text content character limit
 
 USER_PROFILE = """
