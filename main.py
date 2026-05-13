@@ -52,6 +52,25 @@ MAX_DESC_CHARS = 600
 MAX_ARTICLES_PER_CATEGORY = 15
 NOTION_RT_LIMIT = 1990  # Notion rich_text content character limit
 
+USER_PROFILE = """
+I am a college student about to graduate with a degree in Information Technology Infrastructure,
+focused on AI and Cloud. I have completed AI internships and am actively pursuing AWS certifications
+(Solutions Architect Associate and AI Practitioner). My career goal is to move into a cloud
+infrastructure role after graduation, then grow into an AI Solutions Architect role within a few years.
+
+Prioritize articles that are relevant to:
+- AWS services, announcements, best practices, and certification-relevant topics (SAA, AI Practitioner)
+- Agentic AI, AI agents, and what AI practitioners and architects need to know right now
+- Cloud infrastructure: architecture, networking, storage, compute, cost optimization
+- AI/ML in general — models, platforms, tools, trends shaping the industry
+- DevOps fundamentals and practices worth knowing for someone building cloud exposure
+- Broader IT industry news that would interest an IT professional early in their career
+
+I enjoy a mix of technical deep-dives and higher-level industry trend pieces. Skip articles that are
+purely marketing fluff, unrelated to tech, or too niche to matter for someone at my career stage.
+For each article you include, briefly note (in 1 sentence) why it is relevant to my goals and how it could assist me in my career development.
+"""
+
 
 def fetch_recent_articles() -> dict[str, list[dict]]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -88,19 +107,29 @@ def fetch_recent_articles() -> dict[str, list[dict]]:
 
 def build_prompt(articles: dict[str, list[dict]]) -> str:
     lines = [
-        "You are a technical news editor. Below are recent articles from the past 24 hours, grouped by category.",
-        "For each category that has articles, produce:",
-        "  1. A short paragraph (3–5 sentences) summarizing the overall themes and key developments.",
-        "  2. A list of bullet points — one per article — with 3-5 sentences of detail and the article URL.",
+        "You are a personal news curator for a specific reader. Your job is to review all available",
+        "articles and select only the ones most worth the reader's time based on their profile.",
+        "",
+        "Reader profile:",
+        USER_PROFILE.strip(),
+        "",
+        "Instructions:",
+        "- From all the articles provided, select only the ones that genuinely match the reader's interests.",
+        "- Skip articles that are low-value, pure marketing, or irrelevant to their career path.",
+        "- There is no minimum or maximum — include as many or as few as are actually worth reading.",
+        "- For each selected article, write 2–3 sentences of detail plus one sentence explaining why",
+        "  it is relevant to this reader's goals specifically. Include the article URL.",
+        "- For each category, also write a short paragraph (2–4 sentences) summarizing the overall",
+        "  themes across the selected articles.",
         "",
         "Return ONLY a JSON object (no markdown fences, no extra commentary) with this exact structure:",
         '{"AI":{"summary":"...","bullets":[{"text":"...","url":"..."}]},'
         '"Cloud":{"summary":"...","bullets":[...]},'
         '"DevOps":{"summary":"...","bullets":[...]}}',
         "",
-        "Omit a category key entirely if that category has no articles.",
+        "Omit a category key entirely if no articles from that category are worth including.",
         "",
-        "Articles:",
+        "Articles to evaluate:",
         "",
     ]
 
