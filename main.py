@@ -235,14 +235,23 @@ def build_blocks(digest: dict) -> list[dict]:
 # Notion page creation
 # ---------------------------------------------------------------------------
 
-def create_notion_page(title: str, blocks: list[dict]) -> str:
-    notion = Client(auth=NOTION_API_KEY)
-
+def _get_title_prop(notion: Client) -> str:
     db = notion.databases.retrieve(database_id=NOTION_DATABASE_ID)
-    title_prop = next(
+    if db.get("object") != "database":
+        raise RuntimeError(
+            f"NOTION_DATABASE_ID returned a '{db.get('object', 'unknown')}' object — "
+            "it must point to a database, not a page. Open your Gallery View in Notion, "
+            "click ··· → 'Open as full page', then copy the ID from that URL."
+        )
+    return next(
         name for name, prop in db["properties"].items()
         if prop["type"] == "title"
     )
+
+
+def create_notion_page(title: str, blocks: list[dict]) -> str:
+    notion = Client(auth=NOTION_API_KEY)
+    title_prop = _get_title_prop(notion)
 
     page = notion.pages.create(
         parent={"database_id": NOTION_DATABASE_ID},
@@ -287,6 +296,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fetch feeds and call Claude, but print the digest instead of posting to Notion.",
     )
+    group.add_argument(
+        "--notion-test",
+        action="store_true",
+        help="Create a dummy test page in Notion to verify credentials and database ID. No feed or Claude calls.",
+    )
     return parser.parse_args()
 
 
@@ -310,6 +324,21 @@ def main() -> None:
     today = datetime.now().strftime("%Y-%m-%d")
     title = f"Digest — {today}"
     print(f"=== {title} ===")
+
+    # --notion-test: verify Notion credentials and database ID with a dummy page
+    if args.notion_test:
+        print("Creating test page in Notion (no feed or Claude calls)...")
+        test_blocks = [
+            _heading2_block("Test Entry"),
+            *_paragraph_blocks(
+                "This is a test page created by the daily-news-ingest script to verify "
+                "that the Notion integration and database ID are configured correctly. "
+                "You can delete this page."
+            ),
+        ]
+        location = create_notion_page(f"TEST — {today}", test_blocks)
+        print(f"Success! Test page created: {location}")
+        return
 
     # --feeds-only: test feed fetching without touching any API
     if args.feeds_only:
