@@ -1,0 +1,4 @@
+anthropic>=0.49.0
+feedparser>=6.0.11
+notion-client>=2.2.1
+python-dotenv>=1.0.1
