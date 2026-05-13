@@ -237,11 +237,16 @@ def build_blocks(digest: dict) -> list[dict]:
 
 def _get_title_prop(notion: Client) -> str:
     db = notion.databases.retrieve(database_id=NOTION_DATABASE_ID)
-    if db.get("object") != "database":
+    obj_type = db.get("object", "unknown")
+    top_keys = list(db.keys())
+    print(f"  [debug] Notion object type: '{obj_type}'")
+    print(f"  [debug] Response keys: {top_keys}")
+    if obj_type != "database" or "properties" not in db:
         raise RuntimeError(
-            f"NOTION_DATABASE_ID returned a '{db.get('object', 'unknown')}' object — "
-            "it must point to a database, not a page. Open your Gallery View in Notion, "
-            "click ··· → 'Open as full page', then copy the ID from that URL."
+            f"NOTION_DATABASE_ID did not return a valid database (got '{obj_type}', "
+            f"keys: {top_keys}). Make sure the ID points to the database itself — "
+            "open your Gallery View, click ··· → 'Open as full page', copy the URL, "
+            "and use the 32-char hex ID that appears before any '?v=' in that URL."
         )
     return next(
         name for name, prop in db["properties"].items()
