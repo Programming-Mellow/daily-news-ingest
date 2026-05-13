@@ -17,6 +17,7 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 NOTION_API_KEY = os.environ["NOTION_API_KEY"]
 NOTION_DATABASE_ID = os.environ["NOTION_DATABASE_ID"]
+NOTION_TITLE_PROP = os.getenv("NOTION_TITLE_PROP", "Name")
 
 FEEDS: dict[str, list[str]] = {
     "AI": [
@@ -235,33 +236,13 @@ def build_blocks(digest: dict) -> list[dict]:
 # Notion page creation
 # ---------------------------------------------------------------------------
 
-def _get_title_prop(notion: Client) -> str:
-    db = notion.databases.retrieve(database_id=NOTION_DATABASE_ID)
-    obj_type = db.get("object", "unknown")
-    top_keys = list(db.keys())
-    print(f"  [debug] Notion object type: '{obj_type}'")
-    print(f"  [debug] Response keys: {top_keys}")
-    if obj_type != "database" or "properties" not in db:
-        raise RuntimeError(
-            f"NOTION_DATABASE_ID did not return a valid database (got '{obj_type}', "
-            f"keys: {top_keys}). Make sure the ID points to the database itself — "
-            "open your Gallery View, click ··· → 'Open as full page', copy the URL, "
-            "and use the 32-char hex ID that appears before any '?v=' in that URL."
-        )
-    return next(
-        name for name, prop in db["properties"].items()
-        if prop["type"] == "title"
-    )
-
-
 def create_notion_page(title: str, blocks: list[dict]) -> str:
     notion = Client(auth=NOTION_API_KEY)
-    title_prop = _get_title_prop(notion)
 
     page = notion.pages.create(
         parent={"database_id": NOTION_DATABASE_ID},
         properties={
-            title_prop: {
+            NOTION_TITLE_PROP: {
                 "title": [{"type": "text", "text": {"content": title}}]
             }
         },
