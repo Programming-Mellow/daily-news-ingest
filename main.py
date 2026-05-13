@@ -238,10 +238,16 @@ def build_blocks(digest: dict) -> list[dict]:
 def create_notion_page(title: str, blocks: list[dict]) -> str:
     notion = Client(auth=NOTION_API_KEY)
 
+    db = notion.databases.retrieve(database_id=NOTION_DATABASE_ID)
+    title_prop = next(
+        name for name, prop in db["properties"].items()
+        if prop["type"] == "title"
+    )
+
     page = notion.pages.create(
         parent={"database_id": NOTION_DATABASE_ID},
         properties={
-            "News": {
+            title_prop: {
                 "title": [{"type": "text", "text": {"content": title}}]
             }
         },
