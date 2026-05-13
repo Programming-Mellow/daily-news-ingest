@@ -1,6 +1,6 @@
 # Daily News Digest
 
-Fetches RSS feeds across AI, Cloud, and DevOps topics, summarizes the last 24 hours of articles with Claude, and posts a digest page to Notion — designed to be run by cron.
+Fetches RSS feeds across AI, Cloud, and DevOps topics, uses Claude to curate and summarize only the articles most relevant to your interests, and creates a new entry in a Notion Gallery View database every day — designed to be run by cron.
 
 ## Requirements
 
@@ -27,17 +27,32 @@ cp .env.example .env
 nano .env
 ```
 
-Fill in all three values:
+Fill in all four values:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 NOTION_API_KEY=secret_...
 NOTION_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+NOTION_TITLE_PROP=Name
 ```
 
-To find your `NOTION_DATABASE_ID`: open your Gallery View in Notion, click `···` → **Copy link**, and pull the 32-character hex ID from the URL. It will be the ID segment that appears *before* any `?v=` query parameter — that part is the database ID, not a view ID.
+**Finding your `NOTION_DATABASE_ID`:**
+1. Open your Gallery View in Notion
+2. Click `···` → **Open as full page**
+3. Copy the URL from your browser — it looks like:
+   ```
+   https://www.notion.so/abc123...?v=xyz456...
+   ```
+4. The database ID is the 32-character hex string **before** `?v=` — the part after is a view ID and will not work
 
-Make sure your Notion integration has been granted access to the database (**Share** → invite the integration by name).
+**Setting `NOTION_TITLE_PROP`:**
+This is the name of the title column in your database. Open any existing entry in your Gallery View — it's the bold field at the top of the card. Notion defaults this to `Name`. Set it to whatever yours is actually called.
+
+**Sharing the integration:**
+Your Notion integration must be explicitly invited to the database before it can create entries:
+1. Open the database as a full page
+2. Click **Share** (top right)
+3. Search for your integration by name and click **Invite**
 
 ## Testing
 
@@ -47,12 +62,21 @@ Run these in order to verify each layer before scheduling:
 # 1. Confirm feeds are reachable and returning articles — no API calls, free
 venv/bin/python main.py --feeds-only
 
-# 2. Confirm Claude summarizes correctly — uses Anthropic API, prints output to terminal
+# 2. Confirm Notion credentials and database ID are correct — no feed or Claude calls
+venv/bin/python main.py --notion-test
+
+# 3. Confirm Claude curates correctly — uses Anthropic API, prints output to terminal only
 venv/bin/python main.py --dry-run
 
-# 3. Full run — posts a real digest page to Notion
+# 4. Full run — fetches feeds, calls Claude, posts a real digest entry to Notion
 venv/bin/python main.py
 ```
+
+## Personalization
+
+Claude curates articles based on a reader profile defined in the `USER_PROFILE` constant near the top of `main.py`. It selects only the articles genuinely worth your time and adds a sentence to each one explaining why it is relevant to your goals. Articles that are low-value or off-topic are skipped entirely.
+
+To update your profile — for example, after landing a job or switching certifications — edit the `USER_PROFILE` string in `main.py`.
 
 ## Scheduling on a Raspberry Pi
 
@@ -72,17 +96,15 @@ crontab -e
 **3. Add this line to run at 8 AM CT every day**
 
 ```
-0 8 * * * cd /home/pi/daily-news-ingest && /home/pi/daily-news-ingest/venv/bin/python main.py >> /home/pi/daily-news-ingest/digest.log 2>&1
+0 8 * * * cd /home/vangw/Desktop/daily-news-ingest && /home/vangw/Desktop/daily-news-ingest/venv/bin/python main.py >> /home/vangw/Desktop/daily-news-ingest/digest.log 2>&1
 ```
-
-Replace `/home/pi` with your actual home directory if your username differs (`echo ~` to check).
 
 **Why full paths?** Cron runs without your shell's `PATH`, so the explicit venv Python path and `cd` are required. The `cd` also ensures `python-dotenv` finds the `.env` file.
 
 **Check the log after the first scheduled run:**
 
 ```bash
-tail -f ~/daily-news-ingest/digest.log
+tail -f ~/Desktop/daily-news-ingest/digest.log
 ```
 
 ## RSS Feeds

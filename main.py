@@ -363,7 +363,7 @@ def main() -> None:
         print("Claude returned no usable content — nothing to publish.")
         return
 
-    print(f"Creating Notion page ({len(blocks)} block(s))...")
+    print(f"Creating Notion page...")
     location = create_notion_page(title, blocks)
     print(f"Done: {location}")
 
