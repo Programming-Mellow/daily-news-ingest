@@ -6,8 +6,8 @@ Fetches RSS feeds across AI, Cloud, and DevOps topics, summarizes the last 24 ho
 
 - Python 3.10+
 - An [Anthropic API key](https://console.anthropic.com/)
-- A [Notion integration token](https://www.notion.so/my-integrations) with access to your target page
-- The ID of the Notion parent page where digests will be created
+- A [Notion integration token](https://www.notion.so/my-integrations) with access to your Gallery View database
+- The ID of the Notion database (Gallery View) where digest entries will be created
 
 ## Installation
 
@@ -32,12 +32,12 @@ Fill in all three values:
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 NOTION_API_KEY=secret_...
-NOTION_PARENT_PAGE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+NOTION_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-To find your Notion parent page ID: open the page in Notion, click `···` → **Copy link**, and pull the 32-character hex ID from the URL.
+To find your `NOTION_DATABASE_ID`: open your Gallery View in Notion, click `···` → **Copy link**, and pull the 32-character hex ID from the URL. It will be the ID segment that appears *before* any `?v=` query parameter — that part is the database ID, not a view ID.
 
-Make sure your Notion integration has been granted access to that page (**Share** → invite the integration by name).
+Make sure your Notion integration has been granted access to the database (**Share** → invite the integration by name).
 
 ## Testing
 

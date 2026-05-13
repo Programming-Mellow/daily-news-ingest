@@ -16,7 +16,7 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 NOTION_API_KEY = os.environ["NOTION_API_KEY"]
-NOTION_PARENT_PAGE_ID = os.environ["NOTION_PARENT_PAGE_ID"]
+NOTION_DATABASE_ID = os.environ["NOTION_DATABASE_ID"]
 
 FEEDS: dict[str, list[str]] = {
     "AI": [
@@ -238,8 +238,12 @@ def create_notion_page(title: str, blocks: list[dict]) -> str:
     notion = Client(auth=NOTION_API_KEY)
 
     page = notion.pages.create(
-        parent={"page_id": NOTION_PARENT_PAGE_ID},
-        properties={"title": [{"type": "text", "text": {"content": title}}]},
+        parent={"database_id": NOTION_DATABASE_ID},
+        properties={
+            "News": {
+                "title": [{"type": "text", "text": {"content": title}}]
+            }
+        },
         children=blocks[:100],  # Notion API max 100 blocks per request
     )
 
