@@ -6,7 +6,7 @@ Fetches RSS feeds across AI, Cloud, and DevOps topics, uses Claude to curate and
 
 - Python 3.10+
 - An [Anthropic API key](https://console.anthropic.com/)
-- A [Notion integration token](https://www.notion.so/my-integrations) with access to your Gallery View database
+- A [Notion connection token](https://www.notion.so/my-integrations) with access to your Gallery View database
 - The ID of the Notion database (Gallery View) where digest entries will be created
 
 ## Installation
@@ -14,7 +14,7 @@ Fetches RSS feeds across AI, Cloud, and DevOps topics, uses Claude to curate and
 **1. Clone the repo and create a virtual environment**
 
 ```bash
-git clone <your-repo-url> daily-news-ingest
+git clone https://github.com/Programming-Mellow/daily-news-ingest.git
 cd daily-news-ingest
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
@@ -48,11 +48,11 @@ NOTION_TITLE_PROP=Name
 **Setting `NOTION_TITLE_PROP`:**
 This is the name of the title column in your database. Open any existing entry in your Gallery View — it's the bold field at the top of the card. Notion defaults this to `Name`. Set it to whatever yours is actually called.
 
-**Sharing the integration:**
-Your Notion integration must be explicitly invited to the database before it can create entries:
-1. Open the database as a full page
-2. Click **Share** (top right)
-3. Search for your integration by name and click **Invite**
+**Integrating Connections with your Notion page:**
+Your Notion integration must have access to the database before it can create entries:
+1. Open the Notion developer console and locate your connections
+2. Click **Manage** then **Content Access**
+3. Add your Notion page into the **Content Access** menu
 
 ## Testing
 
@@ -76,7 +76,7 @@ venv/bin/python main.py
 
 Claude curates articles based on a reader profile defined in the `USER_PROFILE` constant near the top of `main.py`. It selects only the articles genuinely worth your time and adds a sentence to each one explaining why it is relevant to your goals. Articles that are low-value or off-topic are skipped entirely.
 
-To update your profile — for example, after landing a job or switching certifications — edit the `USER_PROFILE` string in `main.py`.
+To update your profile, edit the `USER_PROFILE` string in `main.py`.
 
 ## Article Deduplication
 
@@ -88,7 +88,7 @@ If you ever want to force a full re-digest — for example after a long gap betw
 
 ## Scheduling on a Raspberry Pi
 
-**1. Set the system timezone to Central Time**
+**1. Set the system timezone to Central Time (or whichever timezone you are in)**
 
 ```bash
 sudo timedatectl set-timezone America/Chicago
@@ -101,18 +101,16 @@ timedatectl  # confirm
 crontab -e
 ```
 
-**3. Add this line to run at 8 AM CT every day**
+**3. Add this line to run at 8 AM CT every day (or whichever time you desire)**
 
 ```
-0 8 * * * cd /home/vangw/Desktop/daily-news-ingest && /home/vangw/Desktop/daily-news-ingest/venv/bin/python main.py >> /home/vangw/Desktop/daily-news-ingest/digest.log 2>&1
+0 8 * * * cd /home/[USER PATH]/daily-news-ingest/daily-news-ingest && /home/[USER PATH]/daily-news-ingest/venv/bin/python main.py >> /home/[USER PATH]/daily-news-ingest/digest.log 2>&1
 ```
-
-**Why full paths?** Cron runs without your shell's `PATH`, so the explicit venv Python path and `cd` are required. The `cd` also ensures `python-dotenv` finds the `.env` file.
 
 **Check the log after the first scheduled run:**
 
 ```bash
-tail -f ~/Desktop/daily-news-ingest/digest.log
+tail -f ~/[USER PATH]/daily-news-ingest/digest.log
 ```
 
 ## CI / GitHub Actions
