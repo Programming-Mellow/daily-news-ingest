@@ -72,6 +72,17 @@ venv/bin/python main.py --dry-run
 venv/bin/python main.py
 ```
 
+**Verifying output format without affecting the cache:**
+
+If the deduplication cache is causing all articles to be filtered out (common when testing shortly after a real run), use `--ignore-seen` to bypass it:
+
+```bash
+# Preview Claude's output in the terminal without touching the cache or posting to Notion
+venv/bin/python main.py --dry-run --ignore-seen
+```
+
+The cache is not read or updated during an `--ignore-seen` run, so your next scheduled digest is unaffected.
+
 ## Personalization
 
 Claude curates articles based on a reader profile defined in the `USER_PROFILE` constant near the top of `main.py`. It selects only the articles genuinely worth your time and adds a sentence to each one explaining why it is relevant to your goals. Articles that are low-value or off-topic are skipped entirely.
@@ -84,7 +95,7 @@ After each successful run, the script writes a `seen_urls.json` file to the proj
 
 The file is created automatically on first use and is ignored by git (see `.gitignore`), so each person who clones the repo starts with a clean slate and won't accidentally commit their own URL history.
 
-If you ever want to force a full re-digest — for example after a long gap between runs — just delete `seen_urls.json` and the next run will treat all articles as new.
+If you ever want to force a full re-digest — for example after a long gap between runs — either delete `seen_urls.json` or run with `--ignore-seen`. Deleting the file permanently resets the cache; `--ignore-seen` bypasses it for one run only without modifying it.
 
 ## Scheduling on a Raspberry Pi
 
