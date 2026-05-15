@@ -96,7 +96,7 @@ crontab -e
 **3. Add this line to run at 8 AM CT every day (or whichever time you desire)**
 
 ```
-0 8 * * * cd /home/vangw/Desktop/daily-news-ingest && /home/vangw/Desktop/daily-news-ingest/venv/bin/python main.py >> /home/vangw/Desktop/daily-news-ingest/digest.log 2>&1
+0 8 * * * cd /home/[USER PATH]/daily-news-ingest/daily-news-ingest && /home/[USER PATH]/daily-news-ingest/venv/bin/python main.py >> /home/[USER PATH]/daily-news-ingest/digest.log 2>&1
 ```
 
 **Check the log after the first scheduled run:**
