@@ -78,6 +78,14 @@ Claude curates articles based on a reader profile defined in the `USER_PROFILE` 
 
 To update your profile — for example, after landing a job or switching certifications — edit the `USER_PROFILE` string in `main.py`.
 
+## Article Deduplication
+
+After each successful run, the script writes a `seen_urls.json` file to the project directory. On the next run, any article URL already in that file is filtered out before being sent to Claude — preventing duplicate summaries and unnecessary API spend.
+
+The file is created automatically on first use and is ignored by git (see `.gitignore`), so each person who clones the repo starts with a clean slate and won't accidentally commit their own URL history.
+
+If you ever want to force a full re-digest — for example after a long gap between runs — just delete `seen_urls.json` and the next run will treat all articles as new.
+
 ## Scheduling on a Raspberry Pi
 
 **1. Set the system timezone to Central Time**
@@ -106,6 +114,12 @@ crontab -e
 ```bash
 tail -f ~/Desktop/daily-news-ingest/digest.log
 ```
+
+## CI / GitHub Actions
+
+A lightweight workflow at `.github/workflows/feed-check.yml` runs automatically on every push and pull request. It installs dependencies and executes `python main.py --feeds-only`, which confirms that every RSS feed URL is reachable and returning entries without making any API calls or incurring any cost.
+
+No secrets are required for this job — `--feeds-only` never touches the Anthropic or Notion APIs. If a feed URL goes dead or returns a parse error, the warning is surfaced in the Actions log so you can update it before the next scheduled digest run.
 
 ## RSS Feeds
 

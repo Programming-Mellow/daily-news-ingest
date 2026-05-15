@@ -14,9 +14,9 @@ from notion_client import Client
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-NOTION_API_KEY = os.environ["NOTION_API_KEY"]
-NOTION_DATABASE_ID = os.environ["NOTION_DATABASE_ID"]
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+NOTION_API_KEY = os.getenv("NOTION_API_KEY")
+NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 NOTION_TITLE_PROP = os.getenv("NOTION_TITLE_PROP", "Name")
 
 FEEDS: dict[str, list[str]] = {
@@ -53,6 +53,8 @@ MAX_DESC_CHARS = 600
 MAX_ARTICLES_PER_CATEGORY = 5
 NOTION_RT_LIMIT = 1990  # Notion rich_text content character limit
 
+SEEN_URLS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seen_urls.json")
+
 USER_PROFILE = """
 I am a college student about to graduate with a degree in Information Technology Infrastructure,
 focused on AI and Cloud. I have completed AI internships and am actively pursuing AWS certifications
@@ -73,12 +75,39 @@ For each article you include, briefly note (in 1 sentence) why it is relevant to
 """
 
 
-def fetch_recent_articles() -> dict[str, list[dict]]:
+def load_seen_urls() -> set[str]:
+    if not os.path.exists(SEEN_URLS_FILE):
+        return set()
+    try:
+        with open(SEEN_URLS_FILE) as f:
+            data = json.load(f)
+        return set(data.get("urls", []))
+    except Exception as exc:
+        print(f"  [warn] could not read {SEEN_URLS_FILE}: {exc}", file=sys.stderr)
+        return set()
+
+
+def save_seen_urls(articles: dict[str, list[dict]]) -> None:
+    urls = [item["url"] for items in articles.values() for item in items if item.get("url")]
+    payload = {
+        "digested_at": datetime.now(timezone.utc).isoformat(),
+        "urls": urls,
+    }
+    try:
+        with open(SEEN_URLS_FILE, "w") as f:
+            json.dump(payload, f, indent=2)
+    except Exception as exc:
+        print(f"  [warn] could not save {SEEN_URLS_FILE}: {exc}", file=sys.stderr)
+
+
+def fetch_recent_articles(seen_urls: set[str] | None = None) -> dict[str, list[dict]]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    seen_urls = seen_urls or set()
     result: dict[str, list[dict]] = {}
 
     for category, urls in FEEDS.items():
         articles: list[dict] = []
+        skipped = 0
         for url in urls:
             try:
                 feed = feedparser.parse(url)
@@ -93,15 +122,20 @@ def fetch_recent_articles() -> dict[str, list[dict]]:
                 pub_dt = datetime(*parsed[:6], tzinfo=timezone.utc)
                 if pub_dt < cutoff:
                     continue
+                article_url = entry.get("link", "")
+                if article_url in seen_urls:
+                    skipped += 1
+                    continue
                 desc = (entry.get("summary") or entry.get("description") or "").strip()
                 articles.append({
                     "title": (entry.get("title") or "").strip(),
-                    "url": entry.get("link", ""),
+                    "url": article_url,
                     "description": desc[:MAX_DESC_CHARS],
                 })
 
         result[category] = articles[:MAX_ARTICLES_PER_CATEGORY]
-        print(f"  {category}: {len(result[category])} article(s)")
+        skip_note = f", {skipped} duplicate(s) skipped" if skipped else ""
+        print(f"  {category}: {len(result[category])} article(s){skip_note}")
 
     return result
 
@@ -155,6 +189,8 @@ def build_prompt(articles: dict[str, list[dict]]) -> str:
 
 
 def call_claude(articles: dict[str, list[dict]]) -> dict:
+    if not ANTHROPIC_API_KEY:
+        raise SystemExit("ANTHROPIC_API_KEY is not set.")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompt = build_prompt(articles)
 
@@ -235,10 +271,11 @@ def build_blocks(digest: dict) -> list[dict]:
     if overview:
         blocks.extend(_paragraph_blocks(overview))
 
-    for category in ("AI", "Cloud", "DevOps"):
-        data = digest.get(category)
-        if not data:
-            continue
+    present = [c for c in ("AI", "Cloud", "DevOps") if digest.get(c)]
+    for i, category in enumerate(present):
+        if i > 0:
+            blocks.append({"object": "block", "type": "divider", "divider": {}})
+        data = digest[category]
         blocks.append(_heading2_block(category))
         for article in data.get("articles", []):
             title = (article.get("title") or "").strip()
@@ -261,6 +298,8 @@ def build_blocks(digest: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def create_notion_page(title: str, blocks: list[dict]) -> str:
+    if not NOTION_API_KEY or not NOTION_DATABASE_ID:
+        raise SystemExit("NOTION_API_KEY and NOTION_DATABASE_ID must both be set.")
     notion = Client(auth=NOTION_API_KEY)
 
     page = notion.pages.create(
@@ -319,10 +358,11 @@ def _print_digest(digest: dict) -> None:
     if overview:
         print(f"\n{overview}\n")
 
-    for category in ("AI", "Cloud", "DevOps"):
-        data = digest.get(category)
-        if not data:
-            continue
+    categories = [c for c in ("AI", "Cloud", "DevOps") if digest.get(c)]
+    for i, category in enumerate(categories):
+        if i > 0:
+            print(f"\n{'─' * 60}")
+        data = digest[category]
         print(f"\n{'=' * 60}")
         print(f"  {category}")
         print(f"{'=' * 60}")
@@ -368,11 +408,14 @@ def main() -> None:
         return
 
     print("Fetching RSS feeds...")
-    articles = fetch_recent_articles()
+    seen_urls = load_seen_urls()
+    if seen_urls:
+        print(f"  ({len(seen_urls)} URL(s) from last run will be skipped)")
+    articles = fetch_recent_articles(seen_urls)
 
     total = sum(len(v) for v in articles.values())
     if total == 0:
-        print("No articles found in the last 24 hours — nothing to publish.")
+        print("No new articles found in the last 24 hours — nothing to publish.")
         return
 
     print(f"Calling Claude ({total} article(s) total)...")
@@ -384,6 +427,8 @@ def main() -> None:
         _print_digest(digest)
         blocks = build_blocks(digest)
         print(f"\n{len(blocks)} Notion block(s) would be created.")
+        save_seen_urls(articles)
+        print(f"Seen-URL cache updated ({sum(len(v) for v in articles.values())} URL(s)).")
         return
 
     print("Building Notion blocks...")
@@ -394,6 +439,7 @@ def main() -> None:
 
     print(f"Creating Notion page...")
     location = create_notion_page(title, blocks)
+    save_seen_urls(articles)
     print(f"Done: {location}")
 
 

@@ -46,3 +46,6 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime state — not for version control
+seen_urls.json
