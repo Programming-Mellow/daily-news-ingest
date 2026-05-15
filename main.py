@@ -350,6 +350,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Create a dummy test page in Notion to verify credentials and database ID. No feed or Claude calls.",
     )
+    parser.add_argument(
+        "--ignore-seen",
+        action="store_true",
+        help="Skip the seen-URL cache and fetch all recent articles. Cache is not updated after the run.",
+    )
     return parser.parse_args()
 
 
@@ -408,9 +413,13 @@ def main() -> None:
         return
 
     print("Fetching RSS feeds...")
-    seen_urls = load_seen_urls()
-    if seen_urls:
-        print(f"  ({len(seen_urls)} URL(s) from last run will be skipped)")
+    if args.ignore_seen:
+        print("  (--ignore-seen: skipping deduplication cache)")
+        seen_urls: set[str] = set()
+    else:
+        seen_urls = load_seen_urls()
+        if seen_urls:
+            print(f"  ({len(seen_urls)} URL(s) from last run will be skipped)")
     articles = fetch_recent_articles(seen_urls)
 
     total = sum(len(v) for v in articles.values())
@@ -426,9 +435,10 @@ def main() -> None:
         print("\n--- Claude output (dry run — Notion page NOT created) ---")
         _print_digest(digest)
         blocks = build_blocks(digest)
-        print(f"\n{len(blocks)} Notion block(s) would be created.")
-        save_seen_urls(articles)
-        print(f"Seen-URL cache updated ({sum(len(v) for v in articles.values())} URL(s)).")
+        print("Notion block is now going to be created.")
+        if not args.ignore_seen:
+            save_seen_urls(articles)
+            print(f"Seen-URL cache updated ({sum(len(v) for v in articles.values())} URL(s)).")
         return
 
     print("Building Notion blocks...")
@@ -439,7 +449,8 @@ def main() -> None:
 
     print(f"Creating Notion page...")
     location = create_notion_page(title, blocks)
-    save_seen_urls(articles)
+    if not args.ignore_seen:
+        save_seen_urls(articles)
     print(f"Done: {location}")
 
 
