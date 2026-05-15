@@ -116,18 +116,21 @@ def build_prompt(articles: dict[str, list[dict]]) -> str:
         "",
         "Instructions:",
         "- From all the articles provided, select only the ones that genuinely match the reader's interests.",
-        "- For each article, include bullet points of key insights or takeaways that would be valuable for the reader to know.",
         "- Skip articles that are low-value, pure marketing, or irrelevant to their career path.",
         "- There is no minimum or maximum — include as many or as few as are actually worth reading.",
-        "- For each selected article, write 3–5 sentences of detail plus one sentence explaining why",
-        "  it is relevant to this reader's goals specifically. Include the article URL at the end of your summarization per each article.",
-        "- For each category, also write a short paragraph (3–5 sentences) summarizing the overall",
-        "  themes across the selected articles.",
+        "- For each selected article, provide 3–5 key point bullet strings capturing the most important",
+        "  insights. The final key point should be one sentence explaining why this article is relevant",
+        "  to the reader's career goals specifically.",
+        "- Write a top-level 'overview' field: start with 'Good morning Wendy! Here are your news",
+        "  articles for today.' followed by a 3–5 sentence digest summarizing the most important themes",
+        "  across ALL selected articles, why they matter to her career goals, and what she should take",
+        "  away from today's reading.",
         "",
         "Return ONLY a JSON object (no markdown fences, no extra commentary) with this exact structure:",
-        '{"AI":{"summary":"...","bullets":[{"text":"...","url":"..."}]},'
-        '"Cloud":{"summary":"...","bullets":[...]},'
-        '"DevOps":{"summary":"...","bullets":[...]}}',
+        '{"overview":"Good morning Wendy! Here are your news articles for today. ...",'
+        '"AI":{"articles":[{"title":"Short descriptive title of article","key_points":["point 1","point 2","point 3"],"url":"https://..."}]},'
+        '"Cloud":{"articles":[...]},'
+        '"DevOps":{"articles":[...]}}',
         "",
         "Omit a category key entirely if no articles from that category are worth including.",
         "",
@@ -217,18 +220,39 @@ def _heading2_block(text: str) -> dict:
     }
 
 
+def _heading3_block(text: str) -> dict:
+    return {
+        "object": "block",
+        "type": "heading_3",
+        "heading_3": {"rich_text": [_rt(text[:NOTION_RT_LIMIT])]},
+    }
+
+
 def build_blocks(digest: dict) -> list[dict]:
     blocks: list[dict] = []
+
+    overview = (digest.get("overview") or "").strip()
+    if overview:
+        blocks.extend(_paragraph_blocks(overview))
+
     for category in ("AI", "Cloud", "DevOps"):
         data = digest.get(category)
         if not data:
             continue
         blocks.append(_heading2_block(category))
-        summary = (data.get("summary") or "").strip()
-        if summary:
-            blocks.extend(_paragraph_blocks(summary))
-        for item in data.get("bullets", []):
-            blocks.append(_bullet_block(item.get("text", ""), item.get("url", "")))
+        for article in data.get("articles", []):
+            title = (article.get("title") or "").strip()
+            if title:
+                blocks.append(_heading3_block(title))
+            for point in article.get("key_points", []):
+                blocks.append(_bullet_block(point, ""))
+            url = (article.get("url") or "").strip()
+            if url:
+                blocks.append({
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {"rich_text": [_rt(url, url=url)]},
+                })
     return blocks
 
 
@@ -291,6 +315,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def _print_digest(digest: dict) -> None:
+    overview = (digest.get("overview") or "").strip()
+    if overview:
+        print(f"\n{overview}\n")
+
     for category in ("AI", "Cloud", "DevOps"):
         data = digest.get(category)
         if not data:
@@ -298,11 +326,12 @@ def _print_digest(digest: dict) -> None:
         print(f"\n{'=' * 60}")
         print(f"  {category}")
         print(f"{'=' * 60}")
-        print(data.get("summary", ""))
-        for item in data.get("bullets", []):
-            print(f"\n  • {item.get('text', '')}")
-            if item.get("url"):
-                print(f"    {item['url']}")
+        for article in data.get("articles", []):
+            print(f"\n  ### {article.get('title', '')}")
+            for point in article.get("key_points", []):
+                print(f"    • {point}")
+            if article.get("url"):
+                print(f"    {article['url']}")
 
 
 def main() -> None:
