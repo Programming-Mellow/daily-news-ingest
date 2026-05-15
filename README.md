@@ -102,7 +102,7 @@ crontab -e
 **Check the log after the first scheduled run:**
 
 ```bash
-tail -f ~/Desktop/daily-news-ingest/digest.log
+tail -f ~/[USER PATH]/daily-news-ingest/digest.log
 ```
 
 ## RSS Feeds
